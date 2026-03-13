@@ -29,13 +29,19 @@ app.listen(PORT, () => {
 });
 
 // Try to connect to MongoDB
-mongoose
-  .connect(process.env.MONGODB_URI)
-  .then(() => {
-    console.log("MongoDB connected successfully");
-  })
-  .catch((err) => {
-    console.warn("MongoDB connection warning:", err.message);
-    console.warn("Server running but database features may not work.");
-    console.warn("Ensure MongoDB is running or update MONGODB_URI in .env");
-  });
+const mongoUri = process.env.MONGODB_URI;
+if (mongoUri && typeof mongoUri === "string" && mongoUri.length > 0) {
+  mongoose
+    .connect(mongoUri)
+    .then(() => {
+      console.log("MongoDB connected successfully");
+    })
+    .catch((err) => {
+      console.warn("MongoDB connection warning:", err.message);
+      console.warn("Server running but database features may not work.");
+      console.warn("Ensure MongoDB is running or update MONGODB_URI in .env");
+    });
+} else {
+  console.warn("No MONGODB_URI set. Server running without database.");
+  console.warn("Set MONGODB_URI in server/.env to enable database features.");
+}

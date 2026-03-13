@@ -28,3 +28,5 @@ export const getGroceryHistory = () => api.get("/grocery/history");
 // Exposome
 export const getCurrentExposome = (lat, lon) => api.get(`/exposome/current?lat=${lat}&lon=${lon}`);
 export const getExposomeHistory = () => api.get("/exposome/history");
+export const getCalendarSuggestions = (data) => api.post("/exposome/suggestions", data);
+
