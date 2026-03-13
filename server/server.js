@@ -20,13 +20,35 @@ app.use("/api/exposome", require("./routes/exposome"));
 // Health check
 app.get("/api/ping", (req, res) => res.json({ status: "ok" }));
 
-// Connect to MongoDB and start server
-const PORT = process.env.PORT || 5000;
+// Start server with port fallback so the process does not crash if the preferred port is busy.
+const DEFAULT_PORT = Number(process.env.PORT || 5000);
+const MAX_PORT_RETRIES = 10;
 
-// Start server immediately, attempt MongoDB connection in background
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+function startServerWithFallback(preferredPort, retries = 0) {
+  const currentPort = preferredPort + retries;
+  const server = app.listen(currentPort, () => {
+    if (retries > 0) {
+      console.warn(
+        `Preferred port ${preferredPort} was busy. Server running on fallback port ${currentPort}`
+      );
+    } else {
+      console.log(`Server running on port ${currentPort}`);
+    }
+  });
+
+  server.on("error", (err) => {
+    if (err.code === "EADDRINUSE" && retries < MAX_PORT_RETRIES) {
+      console.warn(`Port ${currentPort} is in use. Trying port ${currentPort + 1}...`);
+      startServerWithFallback(preferredPort, retries + 1);
+      return;
+    }
+
+    console.error("Failed to start server:", err.message);
+    process.exit(1);
+  });
+}
+
+startServerWithFallback(DEFAULT_PORT);
 
 // Try to connect to MongoDB
 const mongoUri = process.env.MONGODB_URI;
