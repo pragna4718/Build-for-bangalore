@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
 
-from routers import predict, recommend, baseline, glycemic, sleep, dopamine, age, grocery, exposome, goals, emergency
+from routers import predict, recommend, baseline, glycemic, sleep, dopamine, age, grocery, exposome, goals, emergency, doctor_match
 
 load_dotenv()
 
@@ -33,6 +33,7 @@ app.include_router(grocery.router,   prefix="/grocery-analyze",  tags=["Grocery"
 app.include_router(exposome.router,  prefix="/exposome-risk",    tags=["Exposome"])
 app.include_router(goals.router,     prefix="/goal-plan",        tags=["Goals"])
 app.include_router(emergency.router, prefix="/emergency-detect", tags=["Emergency"])
+app.include_router(doctor_match.router, prefix="/doctor-match", tags=["Doctor Match"])
 
 
 @app.get("/ping")

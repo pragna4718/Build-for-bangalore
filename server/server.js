@@ -16,6 +16,7 @@ app.use("/api/health", require("./routes/health"));
 app.use("/api/appointments", require("./routes/appointments"));
 app.use("/api/grocery", require("./routes/grocery"));
 app.use("/api/exposome", require("./routes/exposome"));
+app.use("/api/doctors", require("./routes/doctors"));
 
 // Health check
 app.get("/api/ping", (req, res) => res.json({ status: "ok" }));
