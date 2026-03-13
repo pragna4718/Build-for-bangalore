@@ -6,6 +6,11 @@
   width: 100%;
 }
 
+.dashboard-container.light {
+  background-color: #f5f5f7;
+  color: #020617;
+}
+
 .hero-section {
   position: relative;
   height: 100vh;
@@ -73,6 +78,14 @@
   border-top: 1px solid rgba(255,255,255,0.05);
 }
 
+.dashboard-container.light .stats-section {
+  background:
+    radial-gradient(circle at top left, rgba(96,165,250,0.35), transparent 55%),
+    radial-gradient(circle at bottom right, rgba(251,191,36,0.35), transparent 55%),
+    url("https://images.pexels.com/photos/3825573/pexels-photo-3825573.jpeg?auto=compress&cs=tinysrgb&w=1600")
+      center/cover no-repeat;
+}
+
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -94,6 +107,12 @@
   will-change: transform;
   position: relative;
   overflow: hidden;
+}
+
+.dashboard-container.light .stat-card {
+  background: rgba(255,255,255,0.9);
+  border: 1px solid rgba(148,163,184,0.5);
+  box-shadow: 0 22px 45px rgba(148,163,184,0.4);
 }
 .stat-card::before {
   content: '';
@@ -129,6 +148,13 @@
   color: #64748b;
   font-weight: 500;
 }
+
+.dashboard-container.light .stat-label {
+  color: #64748b;
+}
+.dashboard-container.light .stat-unit {
+  color: #9ca3af;
+}
 .stat-trend {
   font-size: 0.9rem;
   font-weight: 600;
@@ -148,6 +174,10 @@
   overflow: hidden;
   position: relative;
   border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+.dashboard-container.light .features-section {
+  background: #f9fafb;
 }
 
 .swiper-container-custom {
@@ -257,6 +287,11 @@
   border-top: 1px solid rgba(255,255,255,0.05);
 }
 
+.dashboard-container.light .footer-section {
+  background: #f3f4f6;
+  border-top-color: rgba(15,23,42,0.08);
+}
+
 .footer-btn {
   background: linear-gradient(135deg, #6366f1, #a855f7);
   color: white;
@@ -317,6 +352,32 @@
   background: rgba(239,68,68,0.1);
   color: #ef4444;
   border-color: rgba(239,68,68,0.3);
+}
+
+.theme-toggle {
+  background: rgba(15,23,42,0.75);
+  color: #e5e7eb;
+  border: 1px solid rgba(148,163,184,0.6);
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 500;
+  transition: background 0.25s ease, border-color 0.25s ease, color 0.25s ease, transform 0.2s ease;
+}
+
+.theme-toggle:hover {
+  transform: translateY(-1px);
+  background: rgba(15,23,42,0.95);
+}
+
+.dashboard-container.light .theme-toggle {
+  background: rgba(255,255,255,0.9);
+  color: #111827;
+  border-color: rgba(148,163,184,0.7);
 }
 
 /* Swiper Pagination */

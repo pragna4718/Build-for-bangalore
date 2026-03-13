@@ -91,6 +91,7 @@ export default function Dashboard() {
   const { user, logout } = useAuth();
   const statsRef = useRef(null);
   const heroRef = useRef(null);
+  const [theme, setTheme] = useState("dark");
   
   const { scrollYProgress } = useScroll({
     target: heroRef,
@@ -139,7 +140,7 @@ export default function Dashboard() {
 
   return (
     <ReactLenis root options={{ lerp: 0.05, smoothWheel: true }}>
-      <div className="dashboard-container">
+      <div className={`dashboard-container ${theme}`}>
         
         {/* Nav Header */}
         <nav className="nav-header">
@@ -147,7 +148,21 @@ export default function Dashboard() {
             <div className="user-avatar">{user?.name?.[0]?.toUpperCase() || "U"}</div>
             <span style={{fontWeight: 600, color: "#fff"}}>{user?.name || "User"}</span>
           </div>
-          <button onClick={logout} className="logout-btn">Logout</button>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+            <button
+              type="button"
+              className="theme-toggle"
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            >
+              <span className="theme-toggle-icon">
+                {theme === "dark" ? "☀️" : "🌙"}
+              </span>
+              <span className="theme-toggle-label">
+                {theme === "dark" ? "Light mode" : "Dark mode"}
+              </span>
+            </button>
+            <button onClick={logout} className="logout-btn">Logout</button>
+          </div>
         </nav>
 
         {/* ── Hero Banner ── */}
