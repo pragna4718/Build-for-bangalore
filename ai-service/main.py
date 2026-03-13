@@ -5,7 +5,7 @@ import os
 import logging
 
 # Import all routers
-from routers import predict, recommend, baseline, glycemic, sleep, dopamine, age, grocery, exposome, goals, emergency
+from routers import predict, recommend, baseline, glycemic, sleep, dopamine, age, grocery, exposome, goals, emergency, food_plate, health_qa, doctor_match
 
 # Load environment variables
 load_dotenv()
@@ -48,6 +48,9 @@ app.include_router(grocery.router,   prefix="/grocery-analyze",  tags=["Grocery"
 app.include_router(exposome.router,  prefix="/exposome-risk",    tags=["Exposome"])
 app.include_router(goals.router,     prefix="/goal-plan",        tags=["Goals"])
 app.include_router(emergency.router, prefix="/emergency-detect", tags=["Emergency"])
+app.include_router(food_plate.router, prefix="/food-plate",      tags=["Food Plate"])
+app.include_router(health_qa.router,  prefix="/health-qa",       tags=["Health QA"])
+app.include_router(doctor_match.router, prefix="/doctor-match",  tags=["Doctor Match"])
 
 
 @app.get("/")
@@ -68,6 +71,9 @@ def root():
             "/exposome-risk",
             "/goal-plan",
             "/emergency-detect",
+            "/food-plate",
+            "/health-qa",
+            "/doctor-match",
             "/ping"
         ]
     }

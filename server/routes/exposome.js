@@ -404,6 +404,21 @@ router.get("/current", auth, async (req, res) => {
         const sunlightIntensity = getSunlightIntensity(uvIndex);
         const alerts = generateHealthAlerts(weatherData, pollutionData, aqiValue, uvIndex);
 
+        // Enrich weather/AQI with AI risk scoring when AI service is available.
+        let aiRisk = {};
+        try {
+          const aiResponse = await aiService.exposomeRisk({
+            userId: req.user.id,
+            aqi: aqiValue,
+            uvIndex,
+            temperatureCelsius: weatherData.temp,
+            humidity: weatherData.humidity,
+          });
+          aiRisk = aiResponse.data || {};
+        } catch (aiErr) {
+          console.warn("AI exposome risk unavailable:", aiErr.message);
+        }
+
         const responseData = {
           weather: weatherData,
           aqi: aqiValue,
@@ -418,6 +433,7 @@ router.get("/current", auth, async (req, res) => {
             city: w.name || "Unknown",
             country: w.sys.country || "Unknown",
           },
+          aiRisk,
         };
 
         // Save to DB (non-blocking)
@@ -435,7 +451,7 @@ router.get("/current", auth, async (req, res) => {
     // Fallback to mock data
     const mock = getMockData(parseFloat(lat), parseFloat(lon));
     const alerts = generateHealthAlerts(mock.weather, mock.pollutants, mock.aqi, mock.uvIndex);
-    const responseData = { ...mock, alerts, _mock: true };
+    const responseData = { ...mock, alerts, _mock: true, aiRisk: {} };
 
     return res.json(responseData);
   } catch (err) {

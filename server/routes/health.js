@@ -134,4 +134,44 @@ router.post("/biological-age", auth, async (req, res) => {
   }
 });
 
+// POST /api/health/recommend
+router.post("/recommend", auth, async (req, res) => {
+  try {
+    const response = await aiService.recommend(req.body);
+    res.json(response.data);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// POST /api/health/baseline-compare
+router.post("/baseline-compare", auth, async (req, res) => {
+  try {
+    const response = await aiService.baselineCompare(req.body);
+    res.json(response.data);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// POST /api/health/goal-plan
+router.post("/goal-plan", auth, async (req, res) => {
+  try {
+    const response = await aiService.goalPlan(req.body);
+    res.json(response.data);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// POST /api/health/emergency-detect
+router.post("/emergency-detect", auth, async (req, res) => {
+  try {
+    const response = await aiService.emergencyDetect(req.body);
+    res.json(response.data);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 module.exports = router;

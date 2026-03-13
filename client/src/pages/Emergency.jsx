@@ -14,6 +14,7 @@ import EmergencyContacts from '../components/Emergency/EmergencyContacts';
 import FirstAidGuide from '../components/Emergency/FirstAidGuide';
 import EmergencyTimeline from '../components/Emergency/EmergencyTimeline';
 import { useVitals } from '../context/VitalsContext';
+import { detectEmergencyAI } from '../services/healthService';
 import '../components/Emergency/Emergency.css';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -30,9 +31,26 @@ export default function Emergency() {
   const [contacts, setContacts] = useState([]);
   const [firstAidSteps, setFirstAidSteps] = useState([]);
   const [emergencyTypeName, setEmergencyTypeName] = useState('');
+  const [aiDetectionMeta, setAiDetectionMeta] = useState({ source: 'local', synced: false });
 
   const sectionsRef = useRef([]);
   const lenisRef = useRef(null);
+  const aiRequestInFlightRef = useRef(false);
+  const lastAiCallAtRef = useRef(0);
+
+  const EMERGENCY_TYPE_MAP = {
+    cardiac_arrest: 'Cardiac Arrest',
+    heart_attack: 'Heart Attack',
+    tachycardia: 'Heart Attack',
+    hypertensive_crisis: 'Heart Attack',
+    bradycardia: 'Severe Bradycardia',
+    hypoxia: 'Respiratory Distress',
+    fainting: 'Fainting / Syncope',
+    syncope: 'Fainting / Syncope',
+    heat_stroke: 'Heat Stroke',
+    severe_hypotension: 'Severe Hypotension',
+    respiratory_distress: 'Respiratory Distress',
+  };
 
   // ── Run detection whenever vitals change ─────────────────────
   useEffect(() => {
@@ -40,6 +58,7 @@ export default function Emergency() {
 
     const result = detectEmergency(vitals);
     setDetection(result);
+    setAiDetectionMeta((prev) => ({ ...prev, source: 'local' }));
 
     // Auto-trigger if emergency severity
     if (result && result.severity === 'emergency' && !emergencyActive) {
@@ -47,6 +66,62 @@ export default function Emergency() {
       setAlarmActive(true);
     }
   }, [vitals, emergencyActive]);
+
+  // ── AI emergency detection with local fallback ─────────────────────
+  useEffect(() => {
+    if (!vitals || !vitals.heartRate) return;
+
+    const now = Date.now();
+    // Avoid spamming API while vitals stream every 2s.
+    if (aiRequestInFlightRef.current || now - lastAiCallAtRef.current < 8000) return;
+
+    const runAiDetection = async () => {
+      aiRequestInFlightRef.current = true;
+      try {
+        const response = await detectEmergencyAI({
+          userId: 'demo-user',
+          heartRate: Math.round(vitals.heartRate),
+          bloodPressureSystolic: Math.round(vitals.bloodPressure?.systolic || 120),
+          oxygenSaturation: Math.round(vitals.spo2 || 98),
+          lossOfConsciousness: scenario === 'cardiac-arrest',
+        });
+
+        const ai = response?.data;
+        if (!ai) return;
+
+        if (!ai.emergency) {
+          setDetection(null);
+          setAiDetectionMeta({ source: 'ai', synced: true });
+          return;
+        }
+
+        const mappedType = EMERGENCY_TYPE_MAP[(ai.emergencyType || '').toLowerCase()] || 'Heart Attack';
+        const severity = ai.callEmergencyServices ? 'emergency' : 'pre-emergency';
+
+        setDetection({
+          type: mappedType,
+          icon: severity === 'emergency' ? '🚨' : '⚠️',
+          severity,
+          color: severity === 'emergency' ? '#ef5350' : '#ffa726',
+          confidence: ai.confidence || 85,
+          details: ai.instructions?.[0] || `AI detected ${mappedType}.`,
+        });
+        setAiDetectionMeta({ source: 'ai', synced: true });
+
+        if (ai.callEmergencyServices && !emergencyActive) {
+          setEmergencyActive(true);
+          setAlarmActive(true);
+        }
+      } catch {
+        setAiDetectionMeta({ source: 'local', synced: false });
+      } finally {
+        lastAiCallAtRef.current = Date.now();
+        aiRequestInFlightRef.current = false;
+      }
+    };
+
+    runAiDetection();
+  }, [vitals, scenario, emergencyActive]);
 
   // ── Update first-aid when detection changes ──
   useEffect(() => {
@@ -164,7 +239,10 @@ export default function Emergency() {
         <div className="wearable-sync-banner">
           <span className={`sync-dot ${isWearableConnected ? 'connected' : ''}`} />
           {isWearableConnected ? (
-            <span>📡 Receiving live data from Wearable — <strong>HR: {Math.round(vitals.heartRate || 72)} bpm</strong>, <strong>SpO₂: {Math.round(vitals.spo2 || 97)}%</strong></span>
+            <span>
+              📡 Receiving live data from Wearable — <strong>HR: {Math.round(vitals.heartRate || 72)} bpm</strong>, <strong>SpO₂: {Math.round(vitals.spo2 || 97)}%</strong>
+              {' '}| {aiDetectionMeta.source === 'ai' ? 'AI+Local detection active' : 'Local fallback active'}
+            </span>
           ) : (
             <span>⚠️ Wearable not connected — <button onClick={() => navigate('/wearable')} className="sync-link">Go to Wearable</button></span>
           )}

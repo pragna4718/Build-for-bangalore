@@ -20,8 +20,20 @@ app.use("/api/health-qa", require("./routes/health-qa"));
 app.use("/api/exposome", require("./routes/exposome"));
 app.use("/api/doctors", require("./routes/doctors"));
 
+// Favicon: return no content to avoid 404 noise in dev
+app.get('/favicon.ico', (req, res) => res.status(204).end());
+
 // Health check
 app.get("/api/ping", (req, res) => res.json({ status: "ok" }));
+
+// Friendly root response for direct backend visits.
+app.get("/", (req, res) => {
+  res.status(200).json({
+    service: "PreventAI backend",
+    status: "running",
+    note: "Use the frontend at http://localhost:3000 and API routes under /api/*",
+  });
+});
 
 // Start server with port fallback so the process does not crash if the preferred port is busy.
 const DEFAULT_PORT = Number(process.env.PORT || 5000);

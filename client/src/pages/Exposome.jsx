@@ -31,6 +31,7 @@ export default function Exposome() {
     sunlightIntensity: 'low',
     pollutants: {},
     alerts: [],
+    aiRisk: {},
     location: {},
   });
   const [suggestions, setSuggestions] = useState([]);
@@ -71,6 +72,7 @@ export default function Exposome() {
       setExposomeData(data);
       setIsMock(!!data._mock);
     } catch (err) {
+      setError(err?.message || 'Unable to fetch live exposome data.');
       console.warn('Failed to fetch exposome data, using defaults:', err.message);
       // Use embedded fallback data so the UI always renders
       setExposomeData({
@@ -93,6 +95,12 @@ export default function Exposome() {
             recommendations: ['Apply SPF 30+ sunscreen', 'Wear sunglasses outdoors', 'Seek shade during peak hours'],
           },
         ],
+        aiRisk: {
+          riskLevel: 'moderate',
+          riskScore: 0.42,
+          outdoorSafe: false,
+          suggestions: ['Limit prolonged outdoor workouts at noon.', 'Use sun protection and hydrate frequently.'],
+        },
         location: { lat: 12.97, lon: 77.59, city: 'Bangalore', country: 'IN' },
         _mock: true,
       });
@@ -203,6 +211,32 @@ export default function Exposome() {
       </nav>
 
       <div className="exposome-content">
+        {error && (
+          <motion.div
+            className="expo-mock-banner"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            style={{ marginBottom: '0.75rem', borderColor: 'rgba(248,113,113,0.45)' }}
+          >
+            Live AI data unavailable: {error}
+            <button
+              type="button"
+              onClick={fetchData}
+              style={{
+                marginLeft: '0.75rem',
+                border: '1px solid rgba(248,113,113,0.55)',
+                background: 'transparent',
+                color: '#fecaca',
+                borderRadius: '999px',
+                padding: '0.15rem 0.55rem',
+                cursor: 'pointer',
+              }}
+            >
+              Retry
+            </button>
+          </motion.div>
+        )}
+
         {/* Mock Data Banner */}
         {isMock && (
           <motion.div
@@ -274,6 +308,45 @@ export default function Exposome() {
             aqi={exposomeData.aqi}
             uvIndex={exposomeData.uvIndex}
           />
+
+          {exposomeData.aiRisk && (exposomeData.aiRisk.riskLevel || exposomeData.aiRisk.riskScore !== undefined) ? (
+            <div className="expo-glass-card" style={{ marginTop: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+                <div>
+                  <p style={{ margin: 0, opacity: 0.75, fontSize: '0.82rem' }}>AI RISK BRIEFING</p>
+                  <h3 style={{ margin: '0.25rem 0' }}>
+                    Risk: {(exposomeData.aiRisk.riskLevel || 'unknown').toString().toUpperCase()}
+                  </h3>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <p style={{ margin: 0, opacity: 0.75, fontSize: '0.82rem' }}>Risk Score</p>
+                  <h3 style={{ margin: '0.25rem 0' }}>{Math.round((Number(exposomeData.aiRisk.riskScore || 0)) * 100)}%</h3>
+                </div>
+              </div>
+
+              <p style={{ marginTop: '0.35rem', marginBottom: '0.5rem' }}>
+                Outdoor Safety: <strong>{exposomeData.aiRisk.outdoorSafe ? 'Safe with normal precautions' : 'Use caution and shorten exposure'}</strong>
+              </p>
+
+              {Array.isArray(exposomeData.aiRisk.suggestions) && exposomeData.aiRisk.suggestions.length > 0 ? (
+                <div style={{ display: 'grid', gap: '0.45rem' }}>
+                  {exposomeData.aiRisk.suggestions.slice(0, 4).map((item, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        border: '1px solid rgba(255,255,255,0.12)',
+                        borderRadius: '10px',
+                        padding: '0.55rem 0.7rem',
+                        background: 'rgba(0,0,0,0.18)',
+                      }}
+                    >
+                      {item}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
         {/* 4. Health Alerts */}

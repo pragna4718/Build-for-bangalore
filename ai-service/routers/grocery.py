@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # OpenRouter configuration
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "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")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1/chat/completions"
 HEADERS = {
     "Authorization": f"Bearer {OPENROUTER_API_KEY}",
@@ -54,6 +54,11 @@ class GroceryItem(BaseModel):
 class GroceryAnalyzeRequest(BaseModel):
     userId: str
     items: List[GroceryItem]
+
+
+class GroceryImageAnalyzeRequest(BaseModel):
+    image: str
+    userId: Optional[str] = "guest"
 
 # ------------------------------------------------------------------
 # Placeholder for user history (points 1.1–1.5, 2.1, 2.3, 7.3)
@@ -346,3 +351,63 @@ async def grocery_analyze(body: GroceryAnalyzeRequest):
     logger.info(f"Grocery analysis completed for {body.userId}")
 
     return response
+
+
+@router.post("/image")
+async def grocery_analyze_image(body: GroceryImageAnalyzeRequest):
+    """
+    Lightweight image endpoint expected by Node /api/grocery/scan-image.
+    This currently returns a deterministic analysis scaffold until OCR/vision is added.
+    """
+    if not body.image:
+        raise HTTPException(status_code=400, detail="image is required")
+
+    items = [
+        {
+            "name": "Apple",
+            "category": "Fruit",
+            "nutrition": {"calories": 52, "protein": 0.3, "carbs": 14, "fat": 0.2, "fiber": 2.4},
+            "isHealthy": True,
+            "healthVerdict": "Nutrient-dense whole fruit with good fiber.",
+            "benefits": ["Supports gut health", "Provides antioxidants"],
+        },
+        {
+            "name": "Whole Wheat Bread",
+            "category": "Grain",
+            "nutrition": {"calories": 247, "protein": 13, "carbs": 41, "fat": 4.2, "fiber": 6},
+            "isHealthy": True,
+            "healthVerdict": "Better choice than refined bread due to higher fiber.",
+            "benefits": ["Sustained energy", "Higher micronutrients"],
+        },
+        {
+            "name": "Potato Chips",
+            "category": "Snack",
+            "nutrition": {"calories": 536, "protein": 7, "carbs": 53, "fat": 35, "fiber": 4.4},
+            "isHealthy": False,
+            "healthVerdict": "High calorie and sodium snack; keep occasional.",
+            "benefits": ["Quick energy"],
+        },
+    ]
+
+    healthy_count = sum(1 for item in items if item["isHealthy"])
+    total_items = len(items)
+    percentage = round((healthy_count / total_items) * 100)
+
+    return {
+        "userId": body.userId,
+        "items": items,
+        "overallAssessment": {
+            "healthyItems": healthy_count,
+            "totalItems": total_items,
+            "healthPercentage": percentage,
+            "verdict": "Great baseline grocery mix. Reduce processed snacks for better metabolic health.",
+        },
+        "combinations": [
+            {
+                "title": "Fiber Balance",
+                "reason": "Combine whole grains with fruit for better satiety and glucose stability.",
+                "items": ["Whole Wheat Bread", "Apple"],
+                "icon": "\ud83c\udf3f",
+            }
+        ],
+    }

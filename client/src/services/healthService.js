@@ -15,6 +15,10 @@ export const getGlycemicCurve = (data) => api.post("/health/glycemic-curve", dat
 export const getSleepDebt = (data) => api.post("/health/sleep-debt", data);
 export const getDopamineScore = (data) => api.post("/health/dopamine-score", data);
 export const getBiologicalAge = (data) => api.post("/health/biological-age", data);
+export const getRecommendations = (data) => api.post("/health/recommend", data);
+export const compareBaseline = (data) => api.post("/health/baseline-compare", data);
+export const getGoalPlan = (data) => api.post("/health/goal-plan", data);
+export const detectEmergencyAI = (data) => api.post("/health/emergency-detect", data);
 
 // Appointments
 export const createAppointment = (data) => api.post("/appointments", data);

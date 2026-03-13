@@ -7,6 +7,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Environment, Stars } from "@react-three/drei";
 import { ReactLenis } from "@studio-freight/react-lenis";
+import { analyzeHealth, getPredictions, getRecommendations, compareBaseline } from "../services/healthService";
 import "./Dashboard.css";
 
 gsap.registerPlugin(ScrollTrigger);
@@ -54,6 +55,42 @@ const STATS = [
     progress: 76,
   },
 ];
+
+function buildRiskStats(riskScores) {
+  if (!riskScores) return STATS;
+
+  const rows = [
+    { key: "diabetes", label: "Diabetes Risk", icon: "🩸", color: "#ef4444" },
+    { key: "cardiac", label: "Cardiac Risk", icon: "🫀", color: "#f59e0b" },
+    { key: "obesity", label: "Obesity Risk", icon: "⚖️", color: "#8b5cf6" },
+    { key: "stress", label: "Stress Risk", icon: "🧠", color: "#3b82f6" },
+  ];
+
+  return rows.map((row) => {
+    const raw = Number(riskScores[row.key] || 0);
+    const percent = Math.round(raw * 100);
+    return {
+      label: row.label,
+      value: percent,
+      unit: "%",
+      trend: percent >= 60 ? "high" : percent >= 35 ? "moderate" : "low",
+      trendUp: percent >= 60,
+      icon: row.icon,
+      color: row.color,
+      progress: Math.max(6, percent),
+    };
+  });
+}
+
+function computeWellnessScore(riskScores) {
+  if (!riskScores) return 50;
+  const values = Object.values(riskScores)
+    .map((v) => Number(v))
+    .filter((v) => Number.isFinite(v));
+  if (!values.length) return 50;
+  const avgRisk = values.reduce((a, b) => a + b, 0) / values.length;
+  return Math.max(0, Math.min(100, Math.round((1 - avgRisk) * 100)));
+}
 
 const FEATURE_CARDS = [
   {
@@ -323,6 +360,12 @@ export default function Dashboard() {
   const statsRef = useRef(null);
   const heroRef = useRef(null);
   const [theme, setTheme] = useState("light");
+  const [displayStats, setDisplayStats] = useState(STATS);
+  const [riskScores, setRiskScores] = useState(null);
+  const [recommendations, setRecommendations] = useState([]);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [analysisError, setAnalysisError] = useState("");
+  const [baselineData, setBaselineData] = useState(null);
 
   const { scrollYProgress } = useScroll({
     target: heroRef,
@@ -363,6 +406,87 @@ export default function Dashboard() {
     if (h < 17) return "Good Afternoon";
     return "Good Evening";
   };
+
+  const fetchRecommendations = async (scores) => {
+    try {
+      const recRes = await getRecommendations({
+        userId: user?._id || "demo-user",
+        riskScores: scores,
+        metrics: {},
+      });
+      setRecommendations(recRes?.data?.recommendations || []);
+    } catch {
+      setRecommendations([]);
+    }
+  };
+
+  const loadLatestPrediction = async () => {
+    try {
+      const response = await getPredictions();
+      const predictionList = Array.isArray(response?.data) ? response.data : [];
+      const latest = predictionList[0] || null;
+      const scores = latest?.riskScores;
+      if (scores) {
+        setRiskScores(scores);
+        setDisplayStats(buildRiskStats(scores));
+        await fetchRecommendations(scores);
+
+        const previous = predictionList[1]?.riskScores;
+        if (previous) {
+          try {
+            const baselineRes = await compareBaseline({
+              userId: user?._id || "demo-user",
+              previousScore: computeWellnessScore(previous),
+              currentScore: computeWellnessScore(scores),
+              previousCredits: baselineData?.totalCredits || 0,
+            });
+            setBaselineData(baselineRes?.data || null);
+          } catch {
+            setBaselineData(null);
+          }
+        }
+      }
+    } catch {
+      // Keep visual fallback stats if prediction history is unavailable.
+    }
+  };
+
+  const runAiAnalysis = async () => {
+    setAnalysisLoading(true);
+    setAnalysisError("");
+    try {
+      const response = await analyzeHealth();
+      const scores = response?.data?.riskScores || response?.data?.prediction?.riskScores;
+      if (!scores) {
+        throw new Error("No risk scores returned");
+      }
+      setRiskScores(scores);
+      setDisplayStats(buildRiskStats(scores));
+      await fetchRecommendations(scores);
+
+      if (scores) {
+        try {
+          const baselineRes = await compareBaseline({
+            userId: user?._id || "demo-user",
+            previousScore: computeWellnessScore(riskScores),
+            currentScore: computeWellnessScore(scores),
+            previousCredits: baselineData?.totalCredits || 0,
+          });
+          setBaselineData(baselineRes?.data || null);
+        } catch {
+          setBaselineData(null);
+        }
+      }
+    } catch (err) {
+      setAnalysisError(err?.response?.data?.message || "Unable to run AI analysis right now.");
+    } finally {
+      setAnalysisLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadLatestPrediction();
+  }, []);
 
   return (
     <ReactLenis root options={{ lerp: 0.07, smoothWheel: true }}>
@@ -542,13 +666,62 @@ export default function Dashboard() {
           <div className="stats-header">
             <h2 className="section-title">Vitals Pulse</h2>
             <p className="section-subtitle">
-              Your numbers are looking{" "}
-              <span className="highlight-green">strong</span> today. Keep it
-              going.
+              AI-backed risk view from your latest health history.
             </p>
+            <button
+              type="button"
+              onClick={runAiAnalysis}
+              disabled={analysisLoading}
+              style={{
+                border: "none",
+                borderRadius: "999px",
+                padding: "0.55rem 0.95rem",
+                background: analysisLoading ? "#374151" : "#0ea5e9",
+                color: "#fff",
+                fontWeight: 700,
+                cursor: analysisLoading ? "not-allowed" : "pointer",
+                marginTop: "0.5rem",
+              }}
+            >
+              {analysisLoading ? "Analyzing..." : "Run AI Analysis"}
+            </button>
           </div>
+          {analysisLoading && !riskScores ? (
+            <div style={{ color: "#93c5fd", marginBottom: "0.75rem" }}>
+              Fetching your latest AI predictions...
+            </div>
+          ) : null}
+          {analysisError ? (
+            <div
+              style={{
+                color: "#fecaca",
+                background: "rgba(127, 29, 29, 0.35)",
+                border: "1px solid rgba(248, 113, 113, 0.35)",
+                borderRadius: "10px",
+                padding: "0.6rem 0.75rem",
+                marginBottom: "0.75rem",
+              }}
+            >
+              {analysisError}
+              <button
+                type="button"
+                onClick={runAiAnalysis}
+                style={{
+                  marginLeft: "0.75rem",
+                  border: "1px solid rgba(248,113,113,0.55)",
+                  background: "transparent",
+                  color: "#fecaca",
+                  borderRadius: "999px",
+                  padding: "0.2rem 0.55rem",
+                  cursor: "pointer",
+                }}
+              >
+                Retry
+              </button>
+            </div>
+          ) : null}
           <div className="stats-grid">
-            {STATS.map((s) => (
+            {displayStats.map((s) => (
               <motion.div
                 key={s.label}
                 className="stat-card"
@@ -588,12 +761,69 @@ export default function Dashboard() {
                     className={`stat-trend ${s.trendUp ? "trend-up" : "trend-down"}`}
                   >
                     <span className="trend-arrow">{s.trendUp ? "↑" : "↓"}</span>
-                    {s.trend} from yesterday
+                    {riskScores ? `${s.trend} risk level` : `${s.trend} from yesterday`}
                   </div>
                 </div>
               </motion.div>
             ))}
           </div>
+
+          {riskScores ? (
+            <div
+              style={{
+                marginTop: "1rem",
+                border: "1px solid rgba(148, 163, 184, 0.22)",
+                borderRadius: "14px",
+                padding: "1rem",
+                background: "rgba(15, 23, 42, 0.45)",
+              }}
+            >
+              <h3 style={{ margin: 0, marginBottom: "0.75rem", fontSize: "1rem" }}>AI Recommendations</h3>
+              {recommendations.length > 0 ? (
+                <div style={{ display: "grid", gap: "0.55rem" }}>
+                  {recommendations.slice(0, 5).map((rec, idx) => (
+                    <div
+                      key={`${rec.condition || "condition"}-${idx}`}
+                      style={{
+                        border: "1px solid rgba(148, 163, 184, 0.18)",
+                        borderRadius: "10px",
+                        padding: "0.6rem 0.75rem",
+                        background: "rgba(2, 6, 23, 0.35)",
+                      }}
+                    >
+                      <strong>{(rec.condition || "General").toUpperCase()}</strong>
+                      <span style={{ marginLeft: "0.5rem", opacity: 0.8 }}>
+                        Priority: {rec.priority || "medium"}
+                      </span>
+                      <div style={{ marginTop: "0.25rem", opacity: 0.92 }}>{rec.action || "Maintain healthy routines."}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p style={{ margin: 0, opacity: 0.8 }}>Run analysis to generate personalized actions.</p>
+              )}
+            </div>
+          ) : null}
+
+          {baselineData ? (
+            <div
+              style={{
+                marginTop: "1rem",
+                border: "1px solid rgba(74, 222, 128, 0.25)",
+                borderRadius: "14px",
+                padding: "1rem",
+                background: "rgba(20, 83, 45, 0.18)",
+              }}
+            >
+              <h3 style={{ margin: 0, marginBottom: "0.6rem", fontSize: "1rem" }}>Baseline Progress</h3>
+              <p style={{ margin: 0 }}>
+                Improvement: <strong>{baselineData.improvementPercent ?? 0}%</strong> | Credits Earned: <strong>{baselineData.creditsEarned ?? 0}</strong> | Total Credits: <strong>{baselineData.totalCredits ?? 0}</strong>
+              </p>
+              <p style={{ marginTop: "0.4rem", marginBottom: 0, opacity: 0.92 }}>
+                Next Goal: {baselineData.adaptiveGoal || "Keep consistency and review weekly."}
+              </p>
+            </div>
+          ) : null}
         </section>
 
         {/* ── Feature Showcase ── */}
